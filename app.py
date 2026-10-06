@@ -180,6 +180,8 @@ with st.sidebar:
 
     st.subheader("🤖 Phân tích Thị giác (Vision AI)")
     default_api_key = os.environ.get("GEMINI_API_KEY", "")
+    if default_api_key and default_api_key.startswith("AQ."):
+        default_api_key = ""
     if not default_api_key:
         try:
             if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
@@ -191,7 +193,7 @@ with st.sidebar:
         "Google Gemini API Key",
         value=default_api_key,
         type="password",
-        help="Nhập Gemini API Key hoặc cấu hình trong Secrets để bật tính năng phân tích đa phương thức (Multimodal Vision) trực tiếp trên ảnh.",
+        help="Nhập Gemini API Key (bắt đầu bằng AIza...) hoặc cấu hình trong Secrets để bật tính năng phân tích đa phương thức (Multimodal Vision) trực tiếp trên ảnh.",
     )
 
 
@@ -297,25 +299,29 @@ with col_left:
     source_tab1, source_tab2 = st.tabs(["📁 Tải ảnh màn hình (Upload)", "🔗 Nhập link Figma (Figma URL)"])
 
     with source_tab1:
-        use_sample = st.checkbox("Sử dụng ảnh mẫu giao diện (Demo Screen)", value=False)
         sample_path = current_dir / "sample_ui.png"
+        use_sample = st.checkbox(
+            "Sử dụng ảnh mẫu giao diện (Demo Screen: Admin User Management)",
+            value=True,
+            help="Tự động nạp màn hình mẫu để trải nghiệm kiểm toán ngay mà không cần tải ảnh."
+        )
 
         uploaded_files = st.file_uploader(
-            "Chọn một hoặc nhiều ảnh màn hình:",
+            "Hoặc tải lên ảnh chụp màn hình thực tế của bạn:",
             type=["png", "jpg", "jpeg", "webp"],
             accept_multiple_files=True,
             help="Bạn có thể tải lên toàn bộ luồng tương tác (UI Flow) gồm nhiều bước liên tiếp.",
         )
 
-        if use_sample and sample_path.exists():
-            sample_img = Image.open(sample_path)
-            uploaded_images.append(sample_img)
-            uploaded_names.append("Màn hình Mẫu (Admin User Management)")
-        elif uploaded_files:
+        if uploaded_files:
             for f in uploaded_files:
                 img = Image.open(f)
                 uploaded_images.append(img)
                 uploaded_names.append(f.name)
+        elif use_sample and sample_path.exists():
+            sample_img = Image.open(sample_path)
+            uploaded_images.append(sample_img)
+            uploaded_names.append("Màn hình Mẫu (Admin User Management)")
 
     with source_tab2:
         st.markdown(
@@ -407,26 +413,30 @@ with col_left:
             uploaded_names.append(f_name)
 
 
-    project_name = st.text_input(
-        "2. Tên Dự án / Màn hình kiểm toán:",
-        value="Click-Ed Admin User Management Flow",
-        help="Tên dự án sẽ xuất hiện trên tiêu đề Báo cáo Giám đốc (Executive Report)",
-    )
-
     with st.expander("⚡ Mẫu Giao Diện Thử Nhanh (1-Click Presets)"):
         col_pre1, col_pre2, col_pre3 = st.columns(3)
         with col_pre1:
             if st.button("🖥️ SaaS Admin", use_container_width=True):
                 st.session_state["default_context"] = "Trang quản trị danh sách người dùng SaaS Click-Ed. Quản trị viên cần tra cứu, phân quyền và duyệt tài khoản."
+                st.session_state["default_project_name"] = "Click-Ed Admin User Management Flow"
                 st.rerun()
         with col_pre2:
             if st.button("🛒 E-Commerce", use_container_width=True):
                 st.session_state["default_context"] = "Luồng giỏ hàng và thanh toán thương mại điện tử. Khách hàng nhập địa chỉ nhận hàng, chọn phương thức thanh toán và áp mã giảm giá."
+                st.session_state["default_project_name"] = "E-Commerce Checkout & Payment Flow"
                 st.rerun()
         with col_pre3:
             if st.button("💳 Fintech App", use_container_width=True):
                 st.session_state["default_context"] = "Màn hình chuyển khoản nhanh qua số tài khoản trên app ngân hàng số. Người dùng cần xác nhận thông tin người nhận, số tiền và nhập mã OTP."
+                st.session_state["default_project_name"] = "Fintech Mobile Quick Transfer Flow"
                 st.rerun()
+
+    proj_val = st.session_state.get("default_project_name", "Click-Ed Admin User Management Flow")
+    project_name = st.text_input(
+        "2. Tên Dự án / Màn hình kiểm toán:",
+        value=proj_val,
+        help="Tên dự án sẽ xuất hiện trên tiêu đề Báo cáo Giám đốc (Executive Report)",
+    )
 
     ctx_val = st.session_state.get(
         "default_context",
@@ -521,10 +531,14 @@ def render_radar_chart(scores: dict):
 
 
 if audit_clicked:
+    if not uploaded_images and sample_path.exists():
+        uploaded_images.append(Image.open(sample_path))
+        uploaded_names.append("Màn hình Mẫu (Admin User Management)")
+
     if not uploaded_images:
         st.error("⚠️ Vui lòng tải lên ít nhất một ảnh giao diện trước khi bắt đầu!")
     else:
-        with st.spinner("🔍 Đang kết nối NotebookLM, đối chiếu tri thức và chấm điểm đa chiều..."):
+        with st.spinner("🔍 Đang kết nối phân tích giao diện, đối chiếu 5 bộ tiêu chuẩn quốc tế và chấm điểm đa chiều..."):
             result = run_ux_audit(
                 images=uploaded_images,
                 image_names=uploaded_names,
@@ -537,280 +551,324 @@ if audit_clicked:
                 platform=platform,
             )
 
+            # Store results persistently in session state
+            st.session_state["latest_audit_result"] = result
+            st.session_state["latest_project_name"] = project_name
+            st.session_state["latest_persona"] = persona
+            st.session_state["latest_platform"] = platform
+            st.session_state["latest_audit_mode"] = audit_mode
+
+            # Append to session progression history
+            if "audit_history" not in st.session_state:
+                st.session_state["audit_history"] = []
+
+            data = result.get("structured_data", {})
+            overall_score = data.get("ux_health_score", 68)
+            issues = data.get("issues", [])
+            crit_count = sum(1 for i in issues if i.get("severity") == "Critical")
+            maj_count = sum(1 for i in issues if i.get("severity") == "Major")
+
+            current_entry = {
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "project": project_name,
+                "score": overall_score,
+                "critical": crit_count,
+                "major": maj_count,
+                "mode": audit_mode,
+            }
+            if not st.session_state["audit_history"] or st.session_state["audit_history"][-1]["time"] != current_entry["time"]:
+                st.session_state["audit_history"].append(current_entry)
+
+            st.rerun()
+
+
+# --- DISPLAY RESULTS (PERSISTENT ACROSS STREAMLIT RERUNS & INTERACTIONS) ---
+if st.session_state.get("latest_audit_result"):
+    result = st.session_state["latest_audit_result"]
+    res_project_name = st.session_state.get("latest_project_name", project_name)
+    res_persona = st.session_state.get("latest_persona", persona)
+    res_platform = st.session_state.get("latest_platform", platform)
+    res_audit_mode = st.session_state.get("latest_audit_mode", audit_mode)
+
+    col_res_status, col_res_actions = st.columns([3, 1])
+    with col_res_status:
         st.success(f"✅ Hoàn tất kiểm toán! Động cơ sử dụng: **{result.get('engine', 'Audit Engine')}**")
+    with col_res_actions:
+        if st.button("🗑️ Đặt lại / Xóa kết quả", use_container_width=True):
+            del st.session_state["latest_audit_result"]
+            st.rerun()
 
-        kb_applied = result.get("knowledge_sources", [])
-        if kb_applied:
-            st.markdown(
-                f"""
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 14px; margin-bottom: 16px; font-size: 0.85rem; color: #475569;">
-                    📚 <strong>Hệ tri thức chuẩn mực đã đối chiếu ({len(kb_applied)} tài liệu):</strong> {', '.join(kb_applied)}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        data = result.get("structured_data", {})
-
-        overall_score = data.get("ux_health_score", 68)
-        verdict = data.get("verdict", "Cần cải thiện (Needs Improvement)")
-        scores = data.get("scores", {})
-        issues = data.get("issues", [])
-        strengths = data.get("strengths", [])
-
-        # Count issues by severity
-        crit_count = sum(1 for i in issues if i.get("severity") == "Critical")
-        maj_count = sum(1 for i in issues if i.get("severity") == "Major")
-        min_count = sum(1 for i in issues if i.get("severity") == "Minor")
-
-        # Top KPI Scorecard
-        st.subheader("🎯 1. Bảng Điểm Khả Dụng & Chỉ Số Sức Khỏe UX (UX Scorecard)")
-        kpi_col1, kpi_col2, kpi_col3, kpi_col4, kpi_col5 = st.columns(5)
-
-        with kpi_col1:
-            score_color = "#10b981" if overall_score >= 80 else ("#f59e0b" if overall_score >= 60 else "#ef4444")
-            st.markdown(
-                f"""
-                <div class="metric-card" style="border-top: 4px solid {score_color};">
-                    <div class="metric-label">UX Health Index</div>
-                    <div class="metric-value" style="color: {score_color};">{overall_score}<span style="font-size: 1.1rem; color: #94a3b8;">/100</span></div>
-                    <div style="font-size: 0.8rem; font-weight: 600; color: {score_color};">{verdict}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with kpi_col2:
-            st.markdown(
-                f"""
-                <div class="metric-card" style="border-top: 4px solid #ef4444;">
-                    <div class="metric-label">Lỗi Nghiêm trọng</div>
-                    <div class="metric-value" style="color: #ef4444;">{crit_count}</div>
-                    <div style="font-size: 0.8rem; color: #64748b;">Blocker / Critical</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with kpi_col3:
-            st.markdown(
-                f"""
-                <div class="metric-card" style="border-top: 4px solid #f97316;">
-                    <div class="metric-label">Lỗi Trung bình</div>
-                    <div class="metric-value" style="color: #f97316;">{maj_count}</div>
-                    <div style="font-size: 0.8rem; color: #64748b;">Major Friction</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with kpi_col4:
-            st.markdown(
-                f"""
-                <div class="metric-card" style="border-top: 4px solid #eab308;">
-                    <div class="metric-label">Lỗi Nhẹ / Cần trau chuốt</div>
-                    <div class="metric-value" style="color: #ca8a04;">{min_count}</div>
-                    <div style="font-size: 0.8rem; color: #64748b;">Minor / Polish</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        with kpi_col5:
-            st.markdown(
-                f"""
-                <div class="metric-card" style="border-top: 4px solid #10b981;">
-                    <div class="metric-label">Điểm Sáng (Strengths)</div>
-                    <div class="metric-value" style="color: #10b981;">{len(strengths)}</div>
-                    <div style="font-size: 0.8rem; color: #64748b;">Cần duy trì</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-
-        # Radar Chart & Dimension Breakdown
-        chart_col, detail_col = st.columns([1.2, 1], gap="medium")
-
-        with chart_col:
-            st.markdown("#### 📡 Biểu đồ Radar 5 Chiều kích Khả dụng")
-            fig = render_radar_chart(scores)
-            st.plotly_chart(fig, use_container_width=True)
-
-        with detail_col:
-            st.markdown("#### 📊 Chi tiết Điểm thành phần")
-            dim_labels = [
-                ("Tính trực quan (Visibility)", scores.get("visibility", 65)),
-                ("Phản hồi hệ thống (Feedback)", scores.get("feedback", 55)),
-                ("Định hướng hành động (Affordance)", scores.get("affordance", 70)),
-                ("Điều hướng & Định vị (Navigation)", scores.get("navigation", 60)),
-                ("Tinh gọn nhận thức (Cognitive Load)", scores.get("cognitive_load", 75)),
-            ]
-            for label, val in dim_labels:
-                col_name, col_prog = st.columns([1.5, 1])
-                with col_name:
-                    st.write(f"**{label}**")
-                with col_prog:
-                    st.progress(val / 100, text=f"{val}/100")
-
-            if strengths:
-                st.markdown("##### 🌟 Điểm cộng nổi bật:")
-                for s in strengths:
-                    st.markdown(f"- ✅ *{s}*")
-
-        st.divider()
-
-        # Severity Issue Matrix
-        st.subheader("⚠️ 2. Bảng Phân Cấp & Quản Trị Độ Nghiêm Trọng Của Lỗi (Issue Matrix)")
-        filter_opt = st.radio(
-            "Lọc lỗi theo mức độ nghiêm trọng:",
-            options=["Tất cả", "🔴 Critical (Nghiêm trọng)", "🟠 Major (Trung bình)", "🟡 Minor (Nhẹ)"],
-            horizontal=True,
+    kb_applied = result.get("knowledge_sources", [])
+    if kb_applied:
+        st.markdown(
+            f"""
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 14px; margin-bottom: 16px; font-size: 0.85rem; color: #475569;">
+                📚 <strong>Hệ tri thức chuẩn mực đã đối chiếu ({len(kb_applied)} tài liệu):</strong> {', '.join(kb_applied)}
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-        filtered_issues = issues
-        if "Critical" in filter_opt:
-            filtered_issues = [i for i in issues if i.get("severity") == "Critical"]
-        elif "Major" in filter_opt:
-            filtered_issues = [i for i in issues if i.get("severity") == "Major"]
-        elif "Minor" in filter_opt:
-            filtered_issues = [i for i in issues if i.get("severity") == "Minor"]
+    data = result.get("structured_data", {})
 
-        for item in filtered_issues:
-            sev = item.get("severity", "Minor")
-            card_class = "issue-critical" if sev == "Critical" else ("issue-major" if sev == "Major" else "issue-minor")
-            badge_class = "badge-crit" if sev == "Critical" else ("badge-maj" if sev == "Major" else "badge-min")
-            badge_icon = "🔴" if sev == "Critical" else ("🟠" if sev == "Major" else "🟡")
+    overall_score = data.get("ux_health_score", 68)
+    verdict = data.get("verdict", "Cần cải thiện (Needs Improvement)")
+    scores = data.get("scores", {})
+    issues = data.get("issues", [])
+    strengths = data.get("strengths", [])
 
-            st.markdown(
-                f"""
-                <div class="issue-card {card_class}">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <div>
-                            <span class="badge-pill {badge_class}">{badge_icon} {sev.upper()}</span>
-                            <strong>Vị trí: {item.get('element', 'Phần tử UI')}</strong> 
-                            <span style="color: #64748b; font-size: 0.85rem;">({item.get('screen', 'Màn hình')})</span>
-                        </div>
-                    </div>
-                    <p style="margin: 6px 0; font-size: 0.95rem;"><strong>Mô tả lỗi:</strong> {item.get('issue', '')}</p>
-                    <p style="margin: 4px 0; font-size: 0.85rem; color: #475569;"><strong>Nguyên lý vi phạm:</strong> <em>{item.get('principle', '')}</em></p>
-                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.1); font-size: 0.9rem; color: #0f172a;">
-                        <strong>💡 Đề xuất sửa đổi:</strong> {item.get('recommendation', '')}
+    # Count issues by severity
+    crit_count = sum(1 for i in issues if i.get("severity") == "Critical")
+    maj_count = sum(1 for i in issues if i.get("severity") == "Major")
+    min_count = sum(1 for i in issues if i.get("severity") == "Minor")
+
+    # Top KPI Scorecard
+    st.subheader("🎯 1. Bảng Điểm Khả Dụng & Chỉ Số Sức Khỏe UX (UX Scorecard)")
+    kpi_col1, kpi_col2, kpi_col3, kpi_col4, kpi_col5 = st.columns(5)
+
+    with kpi_col1:
+        score_color = "#10b981" if overall_score >= 80 else ("#f59e0b" if overall_score >= 60 else "#ef4444")
+        st.markdown(
+            f"""
+            <div class="metric-card" style="border-top: 4px solid {score_color};">
+                <div class="metric-label">UX Health Index</div>
+                <div class="metric-value" style="color: {score_color};">{overall_score}<span style="font-size: 1.1rem; color: #94a3b8;">/100</span></div>
+                <div style="font-size: 0.8rem; font-weight: 600; color: {score_color};">{verdict}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with kpi_col2:
+        st.markdown(
+            f"""
+            <div class="metric-card" style="border-top: 4px solid #ef4444;">
+                <div class="metric-label">Lỗi Nghiêm trọng</div>
+                <div class="metric-value" style="color: #ef4444;">{crit_count}</div>
+                <div style="font-size: 0.8rem; color: #64748b;">Blocker / Critical</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with kpi_col3:
+        st.markdown(
+            f"""
+            <div class="metric-card" style="border-top: 4px solid #f97316;">
+                <div class="metric-label">Lỗi Trung bình</div>
+                <div class="metric-value" style="color: #f97316;">{maj_count}</div>
+                <div style="font-size: 0.8rem; color: #64748b;">Major Friction</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with kpi_col4:
+        st.markdown(
+            f"""
+            <div class="metric-card" style="border-top: 4px solid #eab308;">
+                <div class="metric-label">Lỗi Nhẹ / Cần trau chuốt</div>
+                <div class="metric-value" style="color: #ca8a04;">{min_count}</div>
+                <div style="font-size: 0.8rem; color: #64748b;">Minor / Polish</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with kpi_col5:
+        st.markdown(
+            f"""
+            <div class="metric-card" style="border-top: 4px solid #10b981;">
+                <div class="metric-label">Điểm Sáng (Strengths)</div>
+                <div class="metric-value" style="color: #10b981;">{len(strengths)}</div>
+                <div style="font-size: 0.8rem; color: #64748b;">Cần duy trì</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+
+    # Radar Chart & Dimension Breakdown
+    chart_col, detail_col = st.columns([1.2, 1], gap="medium")
+
+    with chart_col:
+        st.markdown("#### 📡 Biểu đồ Radar 5 Chiều kích Khả dụng")
+        fig = render_radar_chart(scores)
+        st.plotly_chart(fig, use_container_width=True)
+
+    with detail_col:
+        st.markdown("#### 📊 Chi tiết Điểm thành phần")
+        dim_labels = [
+            ("Tính trực quan (Visibility)", scores.get("visibility", 65)),
+            ("Phản hồi hệ thống (Feedback)", scores.get("feedback", 55)),
+            ("Định hướng hành động (Affordance)", scores.get("affordance", 70)),
+            ("Điều hướng & Định vị (Navigation)", scores.get("navigation", 60)),
+            ("Tinh gọn nhận thức (Cognitive Load)", scores.get("cognitive_load", 75)),
+        ]
+        for label, val in dim_labels:
+            col_name, col_prog = st.columns([1.5, 1])
+            with col_name:
+                st.write(f"**{label}**")
+            with col_prog:
+                st.progress(val / 100, text=f"{val}/100")
+
+        if strengths:
+            st.markdown("##### 🌟 Điểm cộng nổi bật:")
+            for s in strengths:
+                st.markdown(f"- ✅ *{s}*")
+
+    st.divider()
+
+    # Severity Issue Matrix
+    st.subheader("⚠️ 2. Bảng Phân Cấp & Quản Trị Độ Nghiêm Trọng Của Lỗi (Issue Matrix)")
+    filter_opt = st.radio(
+        "Lọc lỗi theo mức độ nghiêm trọng:",
+        options=["Tất cả", "🔴 Critical (Nghiêm trọng)", "🟠 Major (Trung bình)", "🟡 Minor (Nhẹ)"],
+        horizontal=True,
+    )
+
+    filtered_issues = issues
+    if "Critical" in filter_opt:
+        filtered_issues = [i for i in issues if i.get("severity") == "Critical"]
+    elif "Major" in filter_opt:
+        filtered_issues = [i for i in issues if i.get("severity") == "Major"]
+    elif "Minor" in filter_opt:
+        filtered_issues = [i for i in issues if i.get("severity") == "Minor"]
+
+    for item in filtered_issues:
+        sev = item.get("severity", "Minor")
+        card_class = "issue-critical" if sev == "Critical" else ("issue-major" if sev == "Major" else "issue-minor")
+        badge_class = "badge-crit" if sev == "Critical" else ("badge-maj" if sev == "Major" else "badge-min")
+        badge_icon = "🔴" if sev == "Critical" else ("🟠" if sev == "Major" else "🟡")
+
+        st.markdown(
+            f"""
+            <div class="issue-card {card_class}">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div>
+                        <span class="badge-pill {badge_class}">{badge_icon} {sev.upper()}</span>
+                        <strong>Vị trí: {item.get('element', 'Phần tử UI')}</strong> 
+                        <span style="color: #64748b; font-size: 0.85rem;">({item.get('screen', 'Màn hình')})</span>
                     </div>
                 </div>
-                """,
-                unsafe_allow_html=True,
+                <p style="margin: 6px 0; font-size: 0.95rem;"><strong>Mô tả lỗi:</strong> {item.get('issue', '')}</p>
+                <p style="margin: 4px 0; font-size: 0.85rem; color: #475569;"><strong>Nguyên lý vi phạm:</strong> <em>{item.get('principle', '')}</em></p>
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.1); font-size: 0.9rem; color: #0f172a;">
+                    <strong>💡 Đề xuất sửa đổi:</strong> {item.get('recommendation', '')}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+
+    # Detailed Report Tabs
+    st.subheader("📑 3. Báo Cáo Phân Tích Chuyên Sâu & Xuất Tài Liệu")
+    tab_report, tab_knowledge, tab_export = st.tabs([
+        "📊 Báo Cáo Chi Tiết (Full Markdown)",
+        "📚 Tri Thức Đối Chiếu Từ NotebookLM",
+        "📥 Xuất Báo Cáo (.md / HTML / CSV)",
+    ])
+
+    with tab_report:
+        st.markdown(result.get("report", "Không có nội dung báo cáo."))
+
+    with tab_knowledge:
+        st.markdown("### 📖 Trích xuất Tri thức từ Notebook 'The Design of Everyday Creative Things'")
+        nlm_ctx = result.get("notebooklm_context")
+        if nlm_ctx:
+            st.info(nlm_ctx)
+        else:
+            st.write("Tri thức tích hợp từ các nguyên lý tiêu chuẩn của Don Norman và Steve Krug.")
+
+    with tab_export:
+        st.markdown("### 📥 Trung Tâm Xuất Báo Cáo Chuyên Nghiệp (Executive Export Center)")
+
+        exp_col1, exp_col2, exp_col3 = st.columns(3)
+
+        # 1. Executive HTML / PDF Report
+        html_report = generate_executive_html_report(
+            result=result,
+            project_name=res_project_name,
+            persona=res_persona,
+            platform=res_platform,
+            audit_mode=res_audit_mode,
+        )
+
+        with exp_col1:
+            st.markdown("#### 📄 Báo Cáo Giám Đốc (HTML/PDF)")
+            st.caption("File HTML tự động căn lề in ấn cao cấp. Bấm mở file và nhấn `Ctrl + P` để lưu thành bản PDF hoàn hảo nộp lãnh đạo hoặc đối tác.")
+            st.download_button(
+                label="📄 Tải Báo Cáo HTML / PDF",
+                data=html_report,
+                file_name=f"UX_Executive_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
+                mime="text/html",
+                type="primary",
+                use_container_width=True,
+            )
+
+        # 2. Jira / Linear CSV Export
+        csv_jira = generate_jira_csv(issues)
+        with exp_col2:
+            st.markdown("#### 🎟️ Backlog Dev (Jira / Linear CSV)")
+            st.caption("Xuất toàn bộ lỗi và đề xuất sửa đổi thành file bảng CSV chuẩn hóa để import thẳng vào Jira, GitHub Issues hoặc Linear.")
+            st.download_button(
+                label="🎟️ Tải File Jira/Linear (CSV)",
+                data=csv_jira,
+                file_name=f"UX_Issues_Jira_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+
+        # 3. Full Markdown
+        report_text = result.get("report", "")
+        with exp_col3:
+            st.markdown("#### 📝 Bản Báo Cáo Đầy Đủ (.md)")
+            st.caption("Toàn bộ báo cáo phân tích chi tiết định dạng Markdown để lưu trữ tài liệu kỹ thuật trên GitHub Wiki hoặc Notion.")
+            st.download_button(
+                label="📝 Tải Bản Markdown (.md)",
+                data=report_text,
+                file_name=f"UX_Audit_{datetime.now().strftime('%Y%m%d_%H%M')}.md",
+                mime="text/markdown",
+                use_container_width=True,
             )
 
         st.divider()
 
-        # Detailed Report Tabs
-        st.subheader("📑 3. Báo Cáo Phân Tích Chuyên Sâu & Xuất Tài Liệu")
-        tab_report, tab_knowledge, tab_export = st.tabs([
-            "📊 Báo Cáo Chi Tiết (Full Markdown)",
-            "📚 Tri Thức Đối Chiếu Từ NotebookLM",
-            "📥 Xuất Báo Cáo (.md)",
-        ])
+        with st.expander("👁️ Xem Trước Báo Cáo Giám Đốc Trực Tiếp (Executive HTML Preview)"):
+            st.components.v1.html(html_report, height=650, scrolling=True)
 
-        with tab_report:
-            st.markdown(result.get("report", "Không có nội dung báo cáo."))
-
-        with tab_knowledge:
-            st.markdown("### 📖 Trích xuất Tri thức từ Notebook 'The Design of Everyday Creative Things'")
-            nlm_ctx = result.get("notebooklm_context")
-            if nlm_ctx:
-                st.info(nlm_ctx)
-            else:
-                st.write("Tri thức tích hợp từ các nguyên lý tiêu chuẩn của Don Norman và Steve Krug.")
-
-        with tab_export:
-            st.markdown("### 📥 Trung Tâm Xuất Báo Cáo Chuyên Nghiệp (Executive Export Center)")
-
-            exp_col1, exp_col2, exp_col3 = st.columns(3)
-
-            # 1. Executive HTML / PDF Report
-            html_report = generate_executive_html_report(
-                result=result,
-                project_name=project_name,
-                persona=persona,
-                platform=platform,
-                audit_mode=audit_mode,
-            )
-
-            with exp_col1:
-                st.markdown("#### 📄 Báo Cáo Giám Đốc (HTML/PDF)")
-                st.caption("File HTML tự động căn lề in ấn cao cấp. Bấm mở file và nhấn `Ctrl + P` để lưu thành bản PDF hoàn hảo nộp lãnh đạo hoặc đối tác.")
-                st.download_button(
-                    label="📄 Tải Báo Cáo HTML / PDF",
-                    data=html_report,
-                    file_name=f"UX_Executive_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
-                    mime="text/html",
-                    type="primary",
-                    use_container_width=True,
+    if len(st.session_state.get("audit_history", [])) > 1:
+        st.divider()
+        st.subheader("📈 4. Lịch Sử & Tiến Trình Điểm Số UX Trong Phiên (Audit Progression)")
+        hist_cols = st.columns(min(len(st.session_state["audit_history"]), 5))
+        for h_idx, h_item in enumerate(st.session_state["audit_history"][-5:]):
+            with hist_cols[h_idx]:
+                h_color = "#10b981" if h_item["score"] >= 80 else ("#f59e0b" if h_item["score"] >= 60 else "#ef4444")
+                st.markdown(
+                    f"""
+                    <div class="metric-card" style="border-top: 3px solid {h_color};">
+                        <div style="font-size: 0.75rem; color: #64748b;">Lần {h_idx+1} ({h_item['time']})</div>
+                        <div style="font-size: 1.4rem; font-weight: 700; color: {h_color};">{h_item['score']}/100</div>
+                        <div style="font-size: 0.75rem; color: #ef4444;">{h_item['critical']} Critical</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
                 )
-
-            # 2. Jira / Linear CSV Export
-            csv_jira = generate_jira_csv(issues)
-            with exp_col2:
-                st.markdown("#### 🎟️ Backlog Dev (Jira / Linear CSV)")
-                st.caption("Xuất toàn bộ lỗi và đề xuất sửa đổi thành file bảng CSV chuẩn hóa để import thẳng vào Jira, GitHub Issues hoặc Linear.")
-                st.download_button(
-                    label="🎟️ Tải File Jira/Linear (CSV)",
-                    data=csv_jira,
-                    file_name=f"UX_Issues_Jira_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                )
-
-            # 3. Full Markdown
-            report_text = result.get("report", "")
-            with exp_col3:
-                st.markdown("#### 📝 Bản Báo Cáo Đầy Đủ (.md)")
-                st.caption("Toàn bộ báo cáo phân tích chi tiết định dạng Markdown để lưu trữ tài liệu kỹ thuật trên GitHub Wiki hoặc Notion.")
-                st.download_button(
-                    label="📝 Tải Bản Markdown (.md)",
-                    data=report_text,
-                    file_name=f"UX_Audit_{datetime.now().strftime('%Y%m%d_%H%M')}.md",
-                    mime="text/markdown",
-                    use_container_width=True,
-                )
-
-            st.divider()
-
-            with st.expander("👁️ Xem Trước Báo Cáo Giám Đốc Trực Tiếp (Executive HTML Preview)"):
-                st.components.v1.html(html_report, height=650, scrolling=True)
-
-        # Record into session history
-        if "audit_history" not in st.session_state:
-            st.session_state["audit_history"] = []
-
-        current_entry = {
-            "time": datetime.now().strftime("%H:%M:%S"),
-            "project": project_name,
-            "score": overall_score,
-            "critical": crit_count,
-            "major": maj_count,
-            "mode": audit_mode,
-        }
-        if not st.session_state["audit_history"] or st.session_state["audit_history"][-1]["time"] != current_entry["time"]:
-            st.session_state["audit_history"].append(current_entry)
-
-        if len(st.session_state["audit_history"]) > 1:
-            st.divider()
-            st.subheader("📈 4. Lịch Sử & Tiến Trình Điểm Số UX Trong Phiên (Audit Progression)")
-            hist_cols = st.columns(min(len(st.session_state["audit_history"]), 5))
-            for h_idx, h_item in enumerate(st.session_state["audit_history"][-5:]):
-                with hist_cols[h_idx]:
-                    h_color = "#10b981" if h_item["score"] >= 80 else ("#f59e0b" if h_item["score"] >= 60 else "#ef4444")
-                    st.markdown(
-                        f"""
-                        <div class="metric-card" style="border-top: 3px solid {h_color};">
-                            <div style="font-size: 0.75rem; color: #64748b;">Lần {h_idx+1} ({h_item['time']})</div>
-                            <div style="font-size: 1.4rem; font-weight: 700; color: {h_color};">{h_item['score']}/100</div>
-                            <div style="font-size: 0.75rem; color: #ef4444;">{h_item['critical']} Critical</div>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+else:
+    st.markdown(
+        """
+        <div style="background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px; text-align: center; margin: 24px 0;">
+            <div style="font-size: 2.5rem; margin-bottom: 12px;">🚀</div>
+            <h3 style="color: #1e293b; margin: 0 0 8px 0; font-weight: 700;">Hệ Thống Đã Sẵn Sàng Kiểm Toán</h3>
+            <p style="color: #64748b; font-size: 0.95rem; max-width: 580px; margin: 0 auto 20px auto; line-height: 1.5;">
+                Màn hình mẫu giao diện quản trị đã được nạp sẵn. Hãy bấm nút 
+                <strong style="color: #4f46e5;">"🚀 Bắt đầu phân tích (Audit UI Flow)"</strong> ở trên để đối chiếu tức thì với 5 bộ tiêu chuẩn quốc tế và nhận báo cáo đa chiều!
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 

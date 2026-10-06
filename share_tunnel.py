@@ -44,10 +44,11 @@ def main():
         "--server.enableXsrfProtection", "false",
     ]
 
+    st_log_file = open(STUDIO_DIR / "streamlit.log", "w", encoding="utf-8")
     st_process = subprocess.Popen(
         st_cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=st_log_file,
+        stderr=subprocess.STDOUT,
         cwd=str(ROOT_DIR),
     )
 

@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+.env
+*.exe
+cloudflared*
+public_url.txt
+*.log
+.streamlit/secrets.toml

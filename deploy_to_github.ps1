@@ -1,5 +1,5 @@
 ﻿# Automated GitHub Deployment Script for UX Audit Studio
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -46,6 +46,17 @@ Write-Host ""
 Write-Host "Đang đẩy code lên GitHub..." -ForegroundColor Cyan
 git branch -M main
 git push -u origin main
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "==========================================================" -ForegroundColor Red
+    Write-Host "❌ ĐẨY LÊN GITHUB CHƯA THÀNH CÔNG!" -ForegroundColor Red
+    Write-Host "Nguyên nhân thường gặp:" -ForegroundColor Yellow
+    Write-Host "1. Bạn chưa tạo repository trên GitHub: Hãy vào https://github.com/new tạo trước." -ForegroundColor White
+    Write-Host "2. Nhập sai link repo hoặc chưa cấp quyền truy cập GitHub." -ForegroundColor White
+    Write-Host "==========================================================" -ForegroundColor Red
+    exit 1
+}
 
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Cyan

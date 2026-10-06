@@ -22,9 +22,12 @@ if str(current_dir) not in sys.path:
 try:
     from ux_audit_studio.notebook_bridge import fetch_notebooks, DEFAULT_NOTEBOOK_ID
     from ux_audit_studio.audit_engine import run_ux_audit
+    from ux_audit_studio.figma_bridge import parse_figma_url, fetch_figma_node_image, list_figma_file_frames
 except (ImportError, ValueError):
     from notebook_bridge import fetch_notebooks, DEFAULT_NOTEBOOK_ID
     from audit_engine import run_ux_audit
+    from figma_bridge import parse_figma_url, fetch_figma_node_image, list_figma_file_frames
+
 
 # Page configuration
 st.set_page_config(
@@ -195,6 +198,26 @@ with st.sidebar:
 
     st.divider()
 
+    st.subheader("🎨 Thiết kế Figma (Figma API)")
+    default_figma_token = os.environ.get("FIGMA_ACCESS_TOKEN", "")
+    if not default_figma_token:
+        try:
+            if hasattr(st, "secrets") and "FIGMA_ACCESS_TOKEN" in st.secrets:
+                default_figma_token = st.secrets["FIGMA_ACCESS_TOKEN"]
+        except Exception:
+            pass
+
+    figma_token_input = st.text_input(
+        "Figma Access Token",
+        value=default_figma_token,
+        type="password",
+        help="Lấy tại: Figma -> Settings -> Security -> Personal access tokens. Cho phép xuất ảnh chất lượng cao trực tiếp từ link Figma.",
+    )
+    st.caption("🔑 Tạo token miễn phí tại: *Figma Settings -> Security -> Personal Access Tokens*")
+
+    st.divider()
+
+
     with st.expander("📖 5 Trụ cột Tiêu chuẩn Quốc tế"):
         st.markdown(
             """
@@ -226,27 +249,120 @@ uploaded_images = []
 uploaded_names = []
 
 with col_left:
-    st.subheader("1. Tải lên Ảnh Giao diện (UI Flow)")
+    st.subheader("1. Nguồn Giao diện Cần Kiểm toán (UI Flow)")
 
-    use_sample = st.checkbox("Sử dụng ảnh mẫu giao diện (Demo Screen)", value=False)
-    sample_path = current_dir / "sample_ui.png"
+    source_tab1, source_tab2 = st.tabs(["📁 Tải ảnh màn hình (Upload)", "🔗 Nhập link Figma (Figma URL)"])
 
-    uploaded_files = st.file_uploader(
-        "Chọn một hoặc nhiều ảnh màn hình:",
-        type=["png", "jpg", "jpeg", "webp"],
-        accept_multiple_files=True,
-        help="Bạn có thể tải lên toàn bộ luồng tương tác (UI Flow) gồm nhiều bước liên tiếp.",
-    )
+    with source_tab1:
+        use_sample = st.checkbox("Sử dụng ảnh mẫu giao diện (Demo Screen)", value=False)
+        sample_path = current_dir / "sample_ui.png"
 
-    if use_sample and sample_path.exists():
-        sample_img = Image.open(sample_path)
-        uploaded_images.append(sample_img)
-        uploaded_names.append("Màn hình Mẫu (Admin User Management)")
-    elif uploaded_files:
-        for f in uploaded_files:
-            img = Image.open(f)
-            uploaded_images.append(img)
-            uploaded_names.append(f.name)
+        uploaded_files = st.file_uploader(
+            "Chọn một hoặc nhiều ảnh màn hình:",
+            type=["png", "jpg", "jpeg", "webp"],
+            accept_multiple_files=True,
+            help="Bạn có thể tải lên toàn bộ luồng tương tác (UI Flow) gồm nhiều bước liên tiếp.",
+        )
+
+        if use_sample and sample_path.exists():
+            sample_img = Image.open(sample_path)
+            uploaded_images.append(sample_img)
+            uploaded_names.append("Màn hình Mẫu (Admin User Management)")
+        elif uploaded_files:
+            for f in uploaded_files:
+                img = Image.open(f)
+                uploaded_images.append(img)
+                uploaded_names.append(f.name)
+
+    with source_tab2:
+        st.markdown(
+            """
+            <div style="font-size: 0.85rem; color: #475569; margin-bottom: 8px;">
+                Dán đường link Frame hoặc File thiết kế Figma cần kiểm toán:
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        figma_url_input = st.text_input(
+            "Figma URL",
+            placeholder="https://www.figma.com/design/.../App?node-id=10-24",
+            help="Hỗ trợ cả link file chung hoặc link trỏ trực tiếp tới một Frame cụ thể",
+            label_visibility="collapsed",
+        )
+
+        col_fg_btn, col_fg_clear = st.columns([2, 1])
+        with col_fg_btn:
+            btn_fetch_figma = st.button("📥 Trích xuất từ Figma", use_container_width=True)
+        with col_fg_clear:
+            if st.button("🗑️ Xóa Figma", use_container_width=True):
+                st.session_state["figma_frames"] = []
+                st.session_state["figma_available_nodes"] = []
+                st.rerun()
+
+        figma_token_val = figma_token_input.strip() if figma_token_input else ""
+
+        if btn_fetch_figma:
+            if not figma_url_input:
+                st.warning("⚠️ Vui lòng dán đường link Figma trước!")
+            elif not figma_token_val:
+                st.error("⚠️ Cần nhập Figma Access Token ở menu bên trái (Sidebar) để trích xuất ảnh!")
+            else:
+                f_key, n_id = parse_figma_url(figma_url_input)
+                if not f_key:
+                    st.error("❌ Không thể nhận diện mã file từ đường dẫn Figma này!")
+                else:
+                    if n_id:
+                        with st.spinner(f"Đang render Frame {n_id} chất lượng cao từ Figma API..."):
+                            f_img, f_err = fetch_figma_node_image(f_key, n_id, figma_token_val)
+                            if f_err:
+                                st.error(f"❌ {f_err}")
+                            elif f_img:
+                                if "figma_frames" not in st.session_state:
+                                    st.session_state["figma_frames"] = []
+                                st.session_state["figma_frames"].append((f_img, f"Figma: Frame {n_id}"))
+                                st.success(f"✅ Đã tải thành công Frame {n_id}!")
+                                st.rerun()
+                    else:
+                        with st.spinner("Đang quét danh sách các Frame/Màn hình trong file Figma..."):
+                            available_nodes, f_err = list_figma_file_frames(f_key, figma_token_val)
+                            if f_err:
+                                st.error(f"❌ {f_err}")
+                            else:
+                                st.session_state["figma_available_nodes"] = available_nodes
+                                st.session_state["figma_file_key"] = f_key
+                                st.info(f"Đã tìm thấy {len(available_nodes)} frame màn hình. Hãy chọn bên dưới:")
+
+        if st.session_state.get("figma_available_nodes"):
+            avail = st.session_state["figma_available_nodes"]
+            f_key = st.session_state.get("figma_file_key", "")
+            node_options = {f"{n['page']} ➔ {n['name']} (ID: {n['id']})": (n['id'], n['name']) for n in avail}
+            selected_node_keys = st.multiselect(
+                "Chọn các Màn hình muốn kiểm toán:",
+                options=list(node_options.keys()),
+                default=list(node_options.keys())[:3] if len(node_options) <= 3 else list(node_options.keys())[:1]
+            )
+            if st.button("🖼️ Render các màn hình đã chọn", type="secondary", use_container_width=True):
+                if not figma_token_val:
+                    st.error("⚠️ Cần Figma Access Token để kết xuất ảnh!")
+                else:
+                    if "figma_frames" not in st.session_state:
+                        st.session_state["figma_frames"] = []
+                    with st.spinner("Đang tải ảnh render các màn hình đã chọn..."):
+                        for label in selected_node_keys:
+                            target_id, target_name = node_options[label]
+                            f_img, f_err = fetch_figma_node_image(f_key, target_id, figma_token_val)
+                            if f_img:
+                                st.session_state["figma_frames"].append((f_img, f"Figma: {target_name}"))
+                    st.success("✅ Đã kết xuất ảnh Figma thành công!")
+                    st.rerun()
+
+    # Append Figma frames to active audit list
+    if st.session_state.get("figma_frames"):
+        st.info(f"🎨 Đang có **{len(st.session_state['figma_frames'])}** màn hình từ Figma đã sẵn sàng để kiểm toán.")
+        for f_img, f_name in st.session_state["figma_frames"]:
+            uploaded_images.append(f_img)
+            uploaded_names.append(f_name)
+
 
     user_context = st.text_area(
         "2. Mô tả Luồng tương tác & Đối tượng người dùng:",

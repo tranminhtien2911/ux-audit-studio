@@ -71,3 +71,18 @@ Nếu muốn dùng như một phần mềm máy tính chuyên nghiệp:
 .\ux_audit_studio\run_app.ps1
 ```
 Truy cập tại: `http://localhost:8501`.
+
+---
+
+## 🎨 5. Tích Hợp Kiểm Toán Từ Link Figma (Figma REST API)
+
+Ứng dụng hỗ trợ trích xuất ảnh giao diện trực tiếp từ bất kỳ đường link Figma nào:
+1. **Lấy Figma Personal Access Token (Miễn phí 100%):**
+   - Vào [figma.com](https://figma.com) -> Bấm vào Avatar góc trên bên trái -> **Settings**.
+   - Chọn thẻ **Security** -> Kéo xuống mục **Personal access tokens** -> Bấm **Generate new token**.
+   - Đặt tên token (ví dụ: `UX-Audit-Token`) -> Copy chuỗi token bắt đầu bằng `figd_...`.
+2. **Sử dụng trên UX Audit Studio:**
+   - Dán token vào ô **Figma Access Token** ở thanh Sidebar bên trái (hoặc lưu vào `FIGMA_ACCESS_TOKEN` trong Secrets).
+   - Chọn thẻ **"🔗 Nhập link Figma"** -> Dán đường link thiết kế -> Bấm **"Trích xuất từ Figma"**.
+   - Hệ thống sẽ tự động tải các màn hình về và đưa vào quy trình phân tích!
+

@@ -122,6 +122,9 @@ def run_ux_audit(
     notebook_id: str = DEFAULT_NOTEBOOK_ID,
     api_key: Optional[str] = None,
     gemini_model: str = "gemini-2.5-flash",
+    audit_mode: str = "Toàn diện (Norman + Krug + Nielsen + WCAG)",
+    persona: str = "Người dùng phổ thông",
+    platform: str = "Đa nền tảng (Web/Mobile)",
 ) -> Dict[str, Any]:
     """
     Run comprehensive UX Audit combining NotebookLM knowledge and Vision AI.
@@ -133,7 +136,8 @@ def run_ux_audit(
             f"Dựa trên các nguyên lý trong sổ tay 'The Design of Everyday Creative Things' "
             f"(Don Norman: Visibility, Feedback, Affordance, Gulf of Execution/Evaluation; "
             f"Steve Krug: Don't Make Me Think, Clickability, Visual Hierarchy, Navigation), "
-            f"hãy tóm lược các tiêu chí khắt khe nhất để đánh giá giao diện cho luồng: {user_context or 'Giao diện ứng dụng/web'}"
+            f"hãy tóm lược các tiêu chí khắt khe nhất để đánh giá giao diện cho luồng: {user_context or 'Giao diện ứng dụng/web'} "
+            f"cho đối tượng {persona} trên nền tảng {platform}."
         )
         nlm_result = query_notebook_knowledge(query_prompt, notebook_id=notebook_id, timeout=45.0)
         if nlm_result and nlm_result.get("answer"):
@@ -160,12 +164,15 @@ def run_ux_audit(
             prompt_parts = []
             full_prompt = (
                 f"{UX_AUDIT_SYSTEM_PROMPT}\n\n"
+                f"### ⚙️ CẤU HÌNH & BỐI CẢNH KIỂM TOÁN CHUYÊN SÂU:\n"
+                f"- **Chế độ kiểm toán:** {audit_mode}\n"
+                f"- **Đối tượng người dùng mục tiêu (Persona):** {persona}\n"
+                f"- **Nền tảng thiết bị mục tiêu:** {platform}\n"
+                f"- **Bối cảnh & Luồng thao tác:** {user_context or 'Giao diện sản phẩm thực tế'}\n\n"
                 f"### 📚 HỆ THỐNG TIÊU CHUẨN QUỐC TẾ (NATIVE KNOWLEDGE BASE - {len(kb_files)} TÀI LIỆU CHUẨN):\n"
                 f"{embedded_kb_text}\n\n"
                 f"### 🔍 NGUYÊN LÝ BỔ SUNG TỪ GOOGLE NOTEBOOKLM (NẾU CÓ):\n"
                 f"{nlm_knowledge_summary or 'Đã nạp đầy đủ các bộ tiêu chuẩn quốc tế trên.'}\n\n"
-                f"### 🎯 BỐI CẢNH DỰ ÁN & MÔ TẢ LUỒNG:\n"
-                f"{user_context or 'Người dùng cung cấp các ảnh chụp màn hình UI bên dưới để kiểm tra tính khả dụng.'}\n\n"
                 f"### 🖼️ DANH SÁCH ẢNH CHỤP MÀN HÌNH ({len(images)} ảnh):\n"
             )
             for idx, name in enumerate(image_names, 1):
@@ -175,6 +182,7 @@ def run_ux_audit(
                 "\nBắt buộc xuất khối JSON cấu trúc ở đầu theo đúng schema đã yêu cầu, "
                 "sau đó là toàn bộ báo cáo phân tích chi tiết Markdown!"
             )
+
 
             prompt_parts.append(full_prompt)
 
@@ -202,6 +210,9 @@ def run_ux_audit(
                 "structured_data": structured_data,
                 "notebooklm_context": nlm_knowledge_summary,
                 "knowledge_sources": kb_files,
+                "audit_mode": audit_mode,
+                "persona": persona,
+                "platform": platform,
             }
 
         except Exception as e:
@@ -209,11 +220,13 @@ def run_ux_audit(
             return _generate_heuristic_report(
                 images, image_names, user_context, nlm_knowledge_summary,
                 error_note=str(e), kb_files=kb_files, embedded_kb_text=embedded_kb_text,
+                audit_mode=audit_mode, persona=persona, platform=platform,
             )
     else:
         return _generate_heuristic_report(
             images, image_names, user_context, nlm_knowledge_summary,
             kb_files=kb_files, embedded_kb_text=embedded_kb_text,
+            audit_mode=audit_mode, persona=persona, platform=platform,
         )
 
 
@@ -225,7 +238,11 @@ def _generate_heuristic_report(
     error_note: Optional[str] = None,
     kb_files: Optional[List[str]] = None,
     embedded_kb_text: str = "",
+    audit_mode: str = "Toàn diện (Norman + Krug + Nielsen + WCAG)",
+    persona: str = "Người dùng phổ thông",
+    platform: str = "Đa nền tảng (Web/Mobile)",
 ) -> Dict[str, Any]:
+
 
     """Fallback generator when vision API key is not provided."""
     note = f"\n> ℹ️ *Lưu ý: {error_note}*" if error_note else ""
@@ -294,5 +311,9 @@ def _generate_heuristic_report(
         "structured_data": structured_data,
         "notebooklm_context": nlm_knowledge_summary,
         "knowledge_sources": kb_files or [],
+        "audit_mode": audit_mode,
+        "persona": persona,
+        "platform": platform,
     }
+
 

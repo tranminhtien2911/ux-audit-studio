@@ -10,6 +10,8 @@ from pathlib import Path
 from PIL import Image
 import streamlit as st
 import plotly.graph_objects as go
+from datetime import datetime
+
 
 # Add workspace directory to path
 current_dir = Path(__file__).resolve().parent
@@ -23,10 +25,13 @@ try:
     from ux_audit_studio.notebook_bridge import fetch_notebooks, DEFAULT_NOTEBOOK_ID
     from ux_audit_studio.audit_engine import run_ux_audit
     from ux_audit_studio.figma_bridge import parse_figma_url, fetch_figma_node_image, list_figma_file_frames
+    from ux_audit_studio.report_generator import generate_executive_html_report, generate_jira_csv
 except (ImportError, ValueError):
     from notebook_bridge import fetch_notebooks, DEFAULT_NOTEBOOK_ID
     from audit_engine import run_ux_audit
     from figma_bridge import parse_figma_url, fetch_figma_node_image, list_figma_file_frames
+    from report_generator import generate_executive_html_report, generate_jira_csv
+
 
 
 # Page configuration
@@ -217,6 +222,44 @@ with st.sidebar:
 
     st.divider()
 
+    st.subheader("🎯 Bối cảnh & Tiêu chuẩn Kiểm toán")
+
+    audit_mode = st.selectbox(
+        "Chế độ Kiểm toán (Audit Mode)",
+        options=[
+            "Toàn diện (Norman + Krug + Nielsen + WCAG)",
+            "Chuyên sâu Tiếp cận (W3C WCAG 2.2 Level AA)",
+            "Tinh giản Nhận thức (Steve Krug 'Don't Make Me Think')",
+            "Tối ưu Chuyển đổi & Giảm Drop-off (CRO Focus)",
+        ],
+        index=0,
+    )
+
+    persona = st.selectbox(
+        "Đối tượng Người dùng (Target Persona)",
+        options=[
+            "Người dùng phổ thông (General Audience)",
+            "Người lớn tuổi (Seniors / 55+ tuổi - Cần tương phản & chữ to)",
+            "Chuyên viên / Quản trị viên (Power Users / B2B SaaS)",
+            "Thế hệ Trẻ / Người dùng di động (Gen Z / Mobile First)",
+        ],
+        index=0,
+    )
+
+    platform = st.selectbox(
+        "Nền tảng Thiết bị (Target Platform)",
+        options=[
+            "Web Desktop (Bàn phím & Chuột)",
+            "Mobile App (iOS / Android - Màn hình cảm ứng)",
+            "Responsive Web (Tương thích mọi thiết bị)",
+            "Bảng điều khiển Quản trị (Enterprise SaaS Portal)",
+        ],
+        index=0,
+    )
+
+    st.divider()
+
+
 
     with st.expander("📖 5 Trụ cột Tiêu chuẩn Quốc tế"):
         st.markdown(
@@ -364,14 +407,39 @@ with col_left:
             uploaded_names.append(f_name)
 
 
+    project_name = st.text_input(
+        "2. Tên Dự án / Màn hình kiểm toán:",
+        value="Click-Ed Admin User Management Flow",
+        help="Tên dự án sẽ xuất hiện trên tiêu đề Báo cáo Giám đốc (Executive Report)",
+    )
+
+    with st.expander("⚡ Mẫu Giao Diện Thử Nhanh (1-Click Presets)"):
+        col_pre1, col_pre2, col_pre3 = st.columns(3)
+        with col_pre1:
+            if st.button("🖥️ SaaS Admin", use_container_width=True):
+                st.session_state["default_context"] = "Trang quản trị danh sách người dùng SaaS Click-Ed. Quản trị viên cần tra cứu, phân quyền và duyệt tài khoản."
+                st.rerun()
+        with col_pre2:
+            if st.button("🛒 E-Commerce", use_container_width=True):
+                st.session_state["default_context"] = "Luồng giỏ hàng và thanh toán thương mại điện tử. Khách hàng nhập địa chỉ nhận hàng, chọn phương thức thanh toán và áp mã giảm giá."
+                st.rerun()
+        with col_pre3:
+            if st.button("💳 Fintech App", use_container_width=True):
+                st.session_state["default_context"] = "Màn hình chuyển khoản nhanh qua số tài khoản trên app ngân hàng số. Người dùng cần xác nhận thông tin người nhận, số tiền và nhập mã OTP."
+                st.rerun()
+
+    ctx_val = st.session_state.get(
+        "default_context",
+        "Trang quản lý danh sách người dùng của hệ thống học tập trực tuyến (Click-Ed). Người dùng là Quản trị viên cần tra cứu, phân quyền và duyệt tài khoản."
+    )
     user_context = st.text_area(
-        "2. Mô tả Luồng tương tác & Đối tượng người dùng:",
-        placeholder="Ví dụ: Trang quản trị danh sách người dùng cho Admin; mục tiêu là tra cứu nhanh và quản lý quyền người dùng...",
-        value="Trang quản lý danh sách người dùng của hệ thống học tập trực tuyến (Click-Ed). Người dùng là Quản trị viên cần tra cứu, phân quyền và duyệt tài khoản.",
-        height=100,
+        "3. Mô tả Luồng tương tác & Mục tiêu của người dùng:",
+        value=ctx_val,
+        height=90,
     )
 
     audit_clicked = st.button("🚀 Bắt đầu phân tích (Audit UI Flow)", type="primary", use_container_width=True)
+
 
 with col_right:
     st.subheader("2. Xem trước Giao diện (Screenshots Preview)")
@@ -464,9 +532,13 @@ if audit_clicked:
                 notebook_id=notebook_id,
                 api_key=api_key_input if api_key_input else None,
                 gemini_model=model_choice,
+                audit_mode=audit_mode,
+                persona=persona,
+                platform=platform,
             )
 
         st.success(f"✅ Hoàn tất kiểm toán! Động cơ sử dụng: **{result.get('engine', 'Audit Engine')}**")
+
         kb_applied = result.get("knowledge_sources", [])
         if kb_applied:
             st.markdown(
@@ -653,11 +725,92 @@ if audit_clicked:
                 st.write("Tri thức tích hợp từ các nguyên lý tiêu chuẩn của Don Norman và Steve Krug.")
 
         with tab_export:
-            st.markdown("### Tải về bản báo cáo định dạng Markdown")
-            report_text = result.get("report", "")
-            st.download_button(
-                label="📥 Tải xuống file Markdown (UX_Audit_Report.md)",
-                data=report_text,
-                file_name="UX_Audit_Report.md",
-                mime="text/markdown",
+            st.markdown("### 📥 Trung Tâm Xuất Báo Cáo Chuyên Nghiệp (Executive Export Center)")
+
+            exp_col1, exp_col2, exp_col3 = st.columns(3)
+
+            # 1. Executive HTML / PDF Report
+            html_report = generate_executive_html_report(
+                result=result,
+                project_name=project_name,
+                persona=persona,
+                platform=platform,
+                audit_mode=audit_mode,
             )
+
+            with exp_col1:
+                st.markdown("#### 📄 Báo Cáo Giám Đốc (HTML/PDF)")
+                st.caption("File HTML tự động căn lề in ấn cao cấp. Bấm mở file và nhấn `Ctrl + P` để lưu thành bản PDF hoàn hảo nộp lãnh đạo hoặc đối tác.")
+                st.download_button(
+                    label="📄 Tải Báo Cáo HTML / PDF",
+                    data=html_report,
+                    file_name=f"UX_Executive_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.html",
+                    mime="text/html",
+                    type="primary",
+                    use_container_width=True,
+                )
+
+            # 2. Jira / Linear CSV Export
+            csv_jira = generate_jira_csv(issues)
+            with exp_col2:
+                st.markdown("#### 🎟️ Backlog Dev (Jira / Linear CSV)")
+                st.caption("Xuất toàn bộ lỗi và đề xuất sửa đổi thành file bảng CSV chuẩn hóa để import thẳng vào Jira, GitHub Issues hoặc Linear.")
+                st.download_button(
+                    label="🎟️ Tải File Jira/Linear (CSV)",
+                    data=csv_jira,
+                    file_name=f"UX_Issues_Jira_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                )
+
+            # 3. Full Markdown
+            report_text = result.get("report", "")
+            with exp_col3:
+                st.markdown("#### 📝 Bản Báo Cáo Đầy Đủ (.md)")
+                st.caption("Toàn bộ báo cáo phân tích chi tiết định dạng Markdown để lưu trữ tài liệu kỹ thuật trên GitHub Wiki hoặc Notion.")
+                st.download_button(
+                    label="📝 Tải Bản Markdown (.md)",
+                    data=report_text,
+                    file_name=f"UX_Audit_{datetime.now().strftime('%Y%m%d_%H%M')}.md",
+                    mime="text/markdown",
+                    use_container_width=True,
+                )
+
+            st.divider()
+
+            with st.expander("👁️ Xem Trước Báo Cáo Giám Đốc Trực Tiếp (Executive HTML Preview)"):
+                st.components.v1.html(html_report, height=650, scrolling=True)
+
+        # Record into session history
+        if "audit_history" not in st.session_state:
+            st.session_state["audit_history"] = []
+
+        current_entry = {
+            "time": datetime.now().strftime("%H:%M:%S"),
+            "project": project_name,
+            "score": overall_score,
+            "critical": crit_count,
+            "major": maj_count,
+            "mode": audit_mode,
+        }
+        if not st.session_state["audit_history"] or st.session_state["audit_history"][-1]["time"] != current_entry["time"]:
+            st.session_state["audit_history"].append(current_entry)
+
+        if len(st.session_state["audit_history"]) > 1:
+            st.divider()
+            st.subheader("📈 4. Lịch Sử & Tiến Trình Điểm Số UX Trong Phiên (Audit Progression)")
+            hist_cols = st.columns(min(len(st.session_state["audit_history"]), 5))
+            for h_idx, h_item in enumerate(st.session_state["audit_history"][-5:]):
+                with hist_cols[h_idx]:
+                    h_color = "#10b981" if h_item["score"] >= 80 else ("#f59e0b" if h_item["score"] >= 60 else "#ef4444")
+                    st.markdown(
+                        f"""
+                        <div class="metric-card" style="border-top: 3px solid {h_color};">
+                            <div style="font-size: 0.75rem; color: #64748b;">Lần {h_idx+1} ({h_item['time']})</div>
+                            <div style="font-size: 1.4rem; font-weight: 700; color: {h_color};">{h_item['score']}/100</div>
+                            <div style="font-size: 0.75rem; color: #ef4444;">{h_item['critical']} Critical</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+

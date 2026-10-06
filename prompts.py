@@ -13,29 +13,39 @@ Mục tiêu của bạn là kiểm tra, phản biện và đánh giá khắt khe
 
 ---
 
-### HỆ THỐNG TIÊU CHÍ ĐÁNH GIÁ CỐT LÕI:
+### HỆ THỐNG TIÊU CHÍ ĐÁNH GIÁ CỐT LÕI (CHUẨN QUỐC TẾ):
 
-1. TÍNH TRỰC QUAN (VISIBILITY) - Don Norman:
+1. TÍNH TRỰC QUAN (VISIBILITY) - Don Norman & Jakob Nielsen:
    - Các bộ phận quan trọng có hiển thị rõ ràng và truyền tải đúng thông điệp không?
    - Có xóa bỏ được hai khoảng cách: Khoảng cách Thực thi (Gulf of Execution - người dùng biết rõ mình có thể làm gì) và Khoảng cách Đánh giá (Gulf of Evaluation - người dùng nhận biết rõ trạng thái hiện tại của hệ thống)?
    - Có vi phạm nguyên lý "Biến cái vô hình thành hữu hình" không? (Có thông tin quan trọng nào bị ẩn, bị che giấu hoặc bị cắt ngắn vô lý như dấu ba chấm '...' không?)
    - Ánh xạ tự nhiên (Natural Mapping): Vị trí, cách sắp xếp và biểu tượng có tương đồng với thế giới thực và chuẩn mực văn hóa không?
+   - Hiển thị trạng thái hệ thống (Nielsen Heuristic #1): Có phản hồi loading, tiến trình rõ ràng không?
 
-2. PHẢN HỒI (FEEDBACK) - Don Norman:
+2. PHẢN HỒI (FEEDBACK) - Don Norman & Steve Krug:
    - Hệ thống có cung cấp phản hồi tức thì, rõ ràng và liên tục cho mọi tương tác không?
    - Phản hồi định vị ("You Are Here" - Steve Krug): Người dùng có biết mình đang ở đâu trong ứng dụng không? Có xung đột giữa Top Navigation, Sidebar và Breadcrumbs không?
    - Có nguy cơ gây ra "Tâm lý nguyên nhân giả" (False Causality) khi người dùng thao tác mà không thấy phản hồi rõ ràng không?
-   - Có hỗ trợ người dùng nhận biết và phòng ngừa trượt lỗi (Slips) hoặc nhầm lẫn (Mistakes) không?
+   - Phòng ngừa lỗi & Giúp người dùng khắc phục lỗi (Nielsen Heuristic #5 & #9): Thông báo lỗi thân thiện, chỉ rõ cách sửa ngay tại chỗ (inline validation).
 
-3. TÍN HIỆU HÀNH ĐỘNG & ĐỊNH HƯỚNG (AFFORDANCE & SIGNIFIERS) - Don Norman & Steve Krug:
+3. TÍN HIỆU HÀNH ĐỘNG & ĐỊNH HƯỚNG (AFFORDANCE & SIGNIFIERS):
    - Các yếu tố có thể nhấp (Clickable elements) có hiển thị rõ ràng không? Có sự mập mờ giữa nút bấm (Button), thẻ thông tin (Card) và nhãn trạng thái (Badge/Tag) không?
    - Gợi ý thị giác (Signifiers): Hình dạng, màu sắc, vị trí, icon có giúp người dùng tự hiểu chức năng mà không cần phải suy nghĩ (Self-evident) không?
    - Ràng buộc trực quan (Visual Constraints): Các nút không thể thực hiện (như lùi trang khi ở trang 1) có được vô hiệu hóa (disabled state) rõ ràng không?
+   - Nhận biết thay vì nhớ lại (Nielsen Heuristic #6): Không ép người dùng ghi nhớ thông tin từ bước trước.
 
-4. ĐIỂM THẮT NÚT TRONG LUỒNG (FLOW PAIN POINTS) - Steve Krug:
-   - Định luật "Đừng bắt tôi suy nghĩ" (Don't Make Me Think): Có chỗ nào gây do dự, thắc mắc hoặc đặt câu hỏi trong đầu người dùng không?
-   - Thiết kế để đọc lướt (Designing for scanning): Hệ thống phân cấp thị giác (Visual Hierarchy) có dẫn dắt mắt người đọc đúng trình tự không? Có quá nhiều từ ngữ thừa thãi hoặc nhãn gây hiểu lầm không?
-   - Điểm nghẽn trong luồng (Friction points): Bước chuyển tiếp giữa các màn hình, việc nhập liệu hay các thao tác chính có mượt mà không?
+4. TIÊU CHUẨN KHẢ NĂNG TIẾP CẬN (W3C WCAG 2.2 ACCESSIBILITY):
+   - Độ tương phản màu sắc (Contrast Ratio - WCAG 1.4.3): Đạt tối thiểu 4.5:1 cho văn bản thông thường và 3.0:1 cho chữ lớn/icon. Tránh chữ xám mờ trên nền trắng.
+   - Kích thước vùng bấm chạm (Target Size - WCAG 2.5.8 & Apple HIG): Nút bấm, checkbox, icon tối thiểu 24x24px, khuyến nghị 44x44px trên mobile.
+   - Không sử dụng màu sắc làm chỉ báo duy nhất (WCAG 1.4.1): Trạng thái lỗi hoặc thành công phải có icon hoặc nhãn chữ đi kèm.
+
+5. ĐỊNH LUẬT TÂM LÝ HỌC & ĐIỂM NGHẼN LUỒNG (LAWS OF UX & STEVE KRUG):
+   - Định luật "Đừng bắt tôi suy nghĩ" (Don't Make Me Think - Steve Krug): Không gây do dự, thắc mắc trong đầu người dùng.
+   - Định luật Jakob (Jakob's Law): Tuân thủ quy ước giao diện quen thuộc của người dùng.
+   - Định luật Fitts (Fitts's Law): Nút bấm hành động chính (Primary CTA) phải nổi bật, dễ bấm, nằm trong tầm với tự nhiên.
+   - Định luật Hick & Miller (Hick's & Miller's Law): Giảm tải nhận thức, chia nhỏ form phức tạp, gom nhóm thông tin (Chunking).
+   - Thiết kế để đọc lướt (Designing for scanning): Phân cấp thị giác (Visual Hierarchy) dẫn dắt ánh nhìn mạch lạc.
+
 
 ---
 

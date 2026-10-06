@@ -208,21 +208,30 @@ def _generate_heuristic_report(
 ## 🔍 2. NGUYÊN TẮC THIẾT KẾ ĐỐI CHIẾU TỪ NOTEBOOKLM
 
 {nlm_knowledge_summary or '''
-### A. Tính trực quan (Visibility) - Don Norman:
+### A. Tính trực quan (Visibility) - Don Norman & Jakob Nielsen:
 - Các phần quan trọng phải nhìn thấy được và truyền tải đúng chức năng.
 - Xóa bỏ Khoảng cách Thực thi (Gulf of Execution) và Khoảng cách Đánh giá (Gulf of Evaluation).
 - Biến cái vô hình thành hữu hình (Making Visible the Invisible): Không cắt ngắn tên, vai trò hay ẩn thông tin cốt lõi.
 - Ánh xạ tự nhiên (Natural Mapping): Vị trí và biểu tượng phải tương thích chuẩn văn hóa thực tế.
+- Hiển thị trạng thái hệ thống: Phản hồi loading/tiến trình trong vòng < 1 giây.
 
 ### B. Phản hồi hệ thống (Feedback) - Don Norman & Steve Krug:
 - Phản hồi tức thì, rõ ràng và liên tục.
 - Phản hồi định vị ("You Are Here"): Người dùng luôn biết mình đang ở đâu qua Breadcrumb, Active Tab và Sidebar đồng nhất.
 - Tránh tâm lý nguyên nhân giả (False Causality).
+- Phòng ngừa lỗi & Chẩn đoán lỗi: Báo lỗi inline validation cụ thể, không dùng mã lỗi kỹ thuật.
 
-### C. Khả năng nhận biết tương tác (Affordance & Signifiers):
+### C. Khả năng nhận biết tương tác (Affordance, Signifiers & Laws of UX):
 - Phân biệt rõ giữa nút bấm có thể click (Button), nhãn trạng thái tĩnh (Badge), và thẻ thông tin (Card).
 - Ràng buộc trực quan (Constraints): Làm mờ (disable) các nút không khả dụng trong trạng thái hiện tại.
+- Định luật Fitts & Hick: Tối ưu vùng bấm ngón cái, giảm tải nhận thức và số lượng lựa chọn thừa.
+
+### D. Tiêu chuẩn Khả năng Tiếp cận (W3C WCAG 2.2 Level AA):
+- Độ tương phản màu sắc: Tối thiểu 4.5:1 cho chữ thường và 3.0:1 cho chữ lớn/icon đồ họa.
+- Kích thước mục tiêu chạm (Target Size): Tối thiểu 24x24px, khuyến nghị 44x44px trên mobile.
+- Không dùng màu làm chỉ báo duy nhất: Lỗi/thành công luôn có icon hoặc nhãn chữ đi kèm.
 '''}
+
 
 ---
 

@@ -195,16 +195,29 @@ with st.sidebar:
 
     st.divider()
 
-    with st.expander("📖 5 Chiều kích kiểm toán UX"):
+    with st.expander("📖 5 Trụ cột Tiêu chuẩn Quốc tế"):
         st.markdown(
             """
-            1. **Tính trực quan (Visibility - Norman):** Xóa bỏ khoảng cách Thực thi & Đánh giá.
-            2. **Phản hồi hệ thống (Feedback - Norman):** Tức thì, rõ ràng, tránh false causality.
-            3. **Định hướng (Affordance & Signifiers):** Tín hiệu hành động hiển nhiên (Self-evident).
-            4. **Điều hướng (Navigation & 'You Are Here' - Krug):** Vụn bánh mì, đồng nhất menu.
-            5. **Tinh gọn nhận thức (Cognitive Load - Krug):** *Đừng bắt tôi suy nghĩ!*
+            1. **Tính trực quan (Visibility - Norman & NN/g):** Xóa bỏ khoảng cách Thực thi & Đánh giá; phản hồi trạng thái hệ thống.
+            2. **Phản hồi hệ thống (Feedback - Norman & Krug):** Tức thì, rõ ràng; phòng ngừa lỗi; điều hướng "You Are Here".
+            3. **Định hướng tương tác (Affordance & Signifiers):** Tín hiệu hành động hiển nhiên (Self-evident); nhận biết thay vì nhớ lại.
+            4. **Tiêu chuẩn Tiếp cận (W3C WCAG 2.2):** Tương phản màu >= 4.5:1; vùng chạm >= 24-44px; không dùng màu làm tín hiệu duy nhất.
+            5. **Tâm lý học UX (Laws of UX & Krug):** Định luật Jakob, Fitts, Hick, Miller; *Đừng bắt tôi suy nghĩ!*
             """
         )
+
+    with st.expander("📂 Nguồn Tài liệu Chuẩn (Knowledge Base)"):
+        st.markdown(
+            """
+            Đã tích hợp 5 bộ tài liệu chuẩn sẵn trong thư mục `ux_audit_studio/knowledge_base/`:
+            - `01_nielsen_10_usability_heuristics.md` (NN/g)
+            - `02_wcag_2_2_accessibility_standards.md` (W3C)
+            - `03_laws_of_ux_psychology.md` (Laws of UX)
+            - `04_form_and_data_table_ux.md` (Form & Data Tables)
+            - `05_mobile_touch_and_navigation_hig.md` (Apple HIG)
+            """
+        )
+
 
 # Main Area: Input Section
 col_left, col_right = st.columns([1, 1], gap="medium")

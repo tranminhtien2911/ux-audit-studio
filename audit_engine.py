@@ -8,6 +8,7 @@ import io
 import json
 import re
 import logging
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from PIL import Image
 
@@ -19,6 +20,26 @@ except (ImportError, ValueError):
     from notebook_bridge import query_notebook_knowledge, DEFAULT_NOTEBOOK_ID
 
 logger = logging.getLogger(__name__)
+
+
+def load_embedded_knowledge_base() -> tuple[str, List[str]]:
+    """Load all markdown files from the knowledge_base directory into a unified knowledge string."""
+    kb_dir = Path(__file__).resolve().parent / "knowledge_base"
+    if not kb_dir.exists():
+        return "", []
+
+    sections = []
+    loaded_files = []
+    for file_path in sorted(kb_dir.glob("*.md")):
+        try:
+            content = file_path.read_text(encoding="utf-8")
+            sections.append(f"#### 📖 TÀI LIỆU CHUẨN: {file_path.name}\n{content.strip()}\n")
+            loaded_files.append(file_path.name)
+        except Exception as e:
+            logger.warning(f"Failed to read {file_path}: {e}")
+
+    return "\n\n---\n\n".join(sections), loaded_files
+
 
 
 def extract_structured_data(text: str) -> tuple[Dict[str, Any], str]:
@@ -105,6 +126,7 @@ def run_ux_audit(
     """
     Run comprehensive UX Audit combining NotebookLM knowledge and Vision AI.
     """
+    embedded_kb_text, kb_files = load_embedded_knowledge_base()
     nlm_knowledge_summary = ""
     try:
         query_prompt = (
@@ -138,11 +160,13 @@ def run_ux_audit(
             prompt_parts = []
             full_prompt = (
                 f"{UX_AUDIT_SYSTEM_PROMPT}\n\n"
-                f"### NGUYÊN LÝ TRÍCH XUẤT TRỰC TIẾP TỪ NOTEBOOKLM:\n"
-                f"{nlm_knowledge_summary or 'Sử dụng hệ thống nguyên lý Don Norman và Steve Krug.'}\n\n"
-                f"### BỐI CẢNH DỰ ÁN & MÔ TẢ LUỒNG:\n"
+                f"### 📚 HỆ THỐNG TIÊU CHUẨN QUỐC TẾ (NATIVE KNOWLEDGE BASE - {len(kb_files)} TÀI LIỆU CHUẨN):\n"
+                f"{embedded_kb_text}\n\n"
+                f"### 🔍 NGUYÊN LÝ BỔ SUNG TỪ GOOGLE NOTEBOOKLM (NẾU CÓ):\n"
+                f"{nlm_knowledge_summary or 'Đã nạp đầy đủ các bộ tiêu chuẩn quốc tế trên.'}\n\n"
+                f"### 🎯 BỐI CẢNH DỰ ÁN & MÔ TẢ LUỒNG:\n"
                 f"{user_context or 'Người dùng cung cấp các ảnh chụp màn hình UI bên dưới để kiểm tra tính khả dụng.'}\n\n"
-                f"### DANH SÁCH ẢNH CHỤP MÀN HÌNH ({len(images)} ảnh):\n"
+                f"### 🖼️ DANH SÁCH ẢNH CHỤP MÀN HÌNH ({len(images)} ảnh):\n"
             )
             for idx, name in enumerate(image_names, 1):
                 full_prompt += f"- Màn hình {idx}: {name}\n"
@@ -173,17 +197,24 @@ def run_ux_audit(
 
             return {
                 "status": "success",
-                "engine": f"Multimodal Vision AI ({gemini_model}) + NotebookLM Grounding",
+                "engine": f"Multimodal Vision AI ({gemini_model}) + 5 Chuẩn UX Quốc Tế",
                 "report": cleaned_report,
                 "structured_data": structured_data,
                 "notebooklm_context": nlm_knowledge_summary,
+                "knowledge_sources": kb_files,
             }
 
         except Exception as e:
             logger.error(f"Gemini Vision call failed: {e}")
-            return _generate_heuristic_report(images, image_names, user_context, nlm_knowledge_summary, error_note=str(e))
+            return _generate_heuristic_report(
+                images, image_names, user_context, nlm_knowledge_summary,
+                error_note=str(e), kb_files=kb_files, embedded_kb_text=embedded_kb_text,
+            )
     else:
-        return _generate_heuristic_report(images, image_names, user_context, nlm_knowledge_summary)
+        return _generate_heuristic_report(
+            images, image_names, user_context, nlm_knowledge_summary,
+            kb_files=kb_files, embedded_kb_text=embedded_kb_text,
+        )
 
 
 def _generate_heuristic_report(
@@ -192,7 +223,10 @@ def _generate_heuristic_report(
     user_context: str,
     nlm_knowledge_summary: str,
     error_note: Optional[str] = None,
+    kb_files: Optional[List[str]] = None,
+    embedded_kb_text: str = "",
 ) -> Dict[str, Any]:
+
     """Fallback generator when vision API key is not provided."""
     note = f"\n> ℹ️ *Lưu ý: {error_note}*" if error_note else ""
     report = f"""# 📊 BÁO CÁO UX AUDIT: {user_context or 'Luồng Giao diện Đã Tải Lên'}
@@ -255,8 +289,10 @@ def _generate_heuristic_report(
     structured_data, cleaned = extract_structured_data(report)
     return {
         "status": "success",
-        "engine": "NotebookLM Grounded Heuristic Engine",
+        "engine": "Native UX Knowledge Base Engine (5 Chuẩn Quốc Tế)",
         "report": cleaned,
         "structured_data": structured_data,
         "notebooklm_context": nlm_knowledge_summary,
+        "knowledge_sources": kb_files or [],
     }
+

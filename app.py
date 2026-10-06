@@ -351,8 +351,19 @@ if audit_clicked:
             )
 
         st.success(f"✅ Hoàn tất kiểm toán! Động cơ sử dụng: **{result.get('engine', 'Audit Engine')}**")
+        kb_applied = result.get("knowledge_sources", [])
+        if kb_applied:
+            st.markdown(
+                f"""
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 14px; margin-bottom: 16px; font-size: 0.85rem; color: #475569;">
+                    📚 <strong>Hệ tri thức chuẩn mực đã đối chiếu ({len(kb_applied)} tài liệu):</strong> {', '.join(kb_applied)}
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         data = result.get("structured_data", {})
+
         overall_score = data.get("ux_health_score", 68)
         verdict = data.get("verdict", "Cần cải thiện (Needs Improvement)")
         scores = data.get("scores", {})
